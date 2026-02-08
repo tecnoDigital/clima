@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ejecutar Python</title>
+</head>
+<body>
+    <h1>Mi Web con Python</h1>
+    
+    <button onclick="correrCodigo()">Ejecutar archivo.py</button>
+
+    <div id="mi-div" style="margin-top:20px; padding:10px; border:1px solid #ccc;">
+        Aquí aparecerá la respuesta...
+    </div>
+
+    <script>
+        function correrCodigo() {
+            const contenedor = document.getElementById('mi-div');
+            contenedor.innerHTML = "Cargando...";
+
+            fetch('/ejecutar-python')
+                .then(response => response.json())
+                .then(data => {
+                    contenedor.innerHTML = data.resultado;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    contenedor.innerHTML = "Hubo un error al ejecutar.";
+                });
+        }
+    </script>
+</body>
+</html>

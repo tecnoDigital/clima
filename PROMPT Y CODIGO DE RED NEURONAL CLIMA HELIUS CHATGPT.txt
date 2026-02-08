@@ -1,0 +1,1325 @@
+
+192.168.69.12:5000
+
+Tú dijiste:
+hola compa, quiero hacer una red neuronal sencilla de 5 variables: temperatura historica mensual, humedad historica mensual, coordenadas e Indice de temeperatrua del fenomeno niño ENSO, y la precipitacion historica, para con los datos historicos y los ultimos 3 meses de esas 5 variables pronosticar la precipitacion en uno de los puntos que corresponden a una coordenada del sistema 
+ChatGPT Plus
+¡Órale, compa! Suena a que quieres armar un modelo de pronóstico de precipitación usando una red neuronal con datos históricos y recientes. Te puedo guiar paso a paso para que tengas una implementación sencilla pero funcional, usando Python y Keras/TensorFlow. Vamos a estructurarlo con claridad.
+
+1️⃣ Definir el problema
+Entrada (X): 5 variables para los últimos 3 meses:
+
+Temperatura mensual
+
+Humedad mensual
+
+Coordenadas (latitud, longitud)
+
+Índice ENSO (Niño)
+
+Precipitación histórica
+
+Como son 3 meses de datos, tu entrada será algo como un vector de tamaño 
+5
+×
+3
+=
+15
+5×3=15 (o 15+2 si sumas coordenadas).
+
+Salida (y): Precipitación del siguiente mes en la coordenada específica que quieres pronosticar.
+
+2️⃣ Preparar los datos
+Necesitas los datos históricos en un DataFrame de Pandas con columnas:
+['mes', 'lat', 'lon', 'temp', 'humedad', 'enso', 'precipitacion'].
+
+Para cada fila, crearás un ventana deslizante de 3 meses para las variables como input y la precipitación del siguiente mes como output.
+
+Ejemplo de cómo crear ventanas en Python:
+
+import pandas as pd
+import numpy as np
+
+# df: tu DataFrame con todas las variables y fechas ordenadas
+def crear_dataset(df, meses_atras=3):
+    X, y = [], []
+    for i in range(meses_atras, len(df)):
+        historial = df.iloc[i-meses_atras:i][['temp', 'humedad', 'enso', 'precipitacion']].values.flatten()
+        coordenadas = df.iloc[i][['lat', 'lon']].values
+        X.append(np.concatenate([historial, coordenadas]))
+        y.append(df.iloc[i]['precipitacion'])
+    return np.array(X), np.array(y)
+
+X, y = crear_dataset(df)
+3️⃣ Normalizar los datos
+Las redes neuronales funcionan mejor si las entradas están en rango 0–1 o media 0, desviación 1.
+
+from sklearn.preprocessing import MinMaxScaler
+
+scaler_X = MinMaxScaler()
+X_scaled = scaler_X.fit_transform(X.reshape(-1, X.shape[-1]))
+
+scaler_y = MinMaxScaler()
+y_scaled = scaler_y.fit_transform(y.reshape(-1, 1))
+4️⃣ Crear la red neuronal
+Una red sencilla de 2–3 capas densas puede funcionar para empezar:
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+model = Sequential([
+    Dense(32, input_dim=X.shape[1], activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1)  # salida de precipitación
+])
+
+model.compile(optimizer='adam', loss='mse')
+5️⃣ Entrenar el modelo
+model.fit(X_scaled, y_scaled, epochs=100, batch_size=16, validation_split=0.2)
+6️⃣ Hacer pronósticos
+Cuando tengas los últimos 3 meses de tus variables:
+
+ultimos_3_meses = np.array([...])  # vector de tamaño 15+2
+ultimos_3_meses_scaled = scaler_X.transform(ultimos_3_meses.reshape(1, -1))
+prediccion_scaled = model.predict(ultimos_3_meses_scaled)
+prediccion = scaler_y.inverse_transform(prediccion_scaled)
+print("Precipitación pronosticada:", prediccion[0][0])
+7️⃣ Consideraciones importantes
+Las coordenadas funcionan como inputs directos, pero si tus puntos son muchos, podría convenir hacer un embedding espacial o usar un mapa rasterizado.
+
+La precipitación suele ser muy variable, si quieres mejorar precisión puedes:
+
+Usar LSTM para secuencias en lugar de aplanar los 3 meses.
+
+Añadir más meses de historial.
+
+Agregar variables adicionales como viento, presión atmosférica, humedad relativa.
+
+Si tienes pocos datos, la red puede sobreajustarse, considera dropout o regularización.
+
+Si quieres, compa, te puedo armar una versión completa lista para correr, con ventanas de 3 meses, normalización, red neuronal y predicción, usando solo Python y Keras, lista para tus datos.
+
+¿Quieres que haga eso?
+
+Tú dijiste:
+dame el codigo completo para mi codigo phyton.py
+ChatGPT Plus
+¡Órale compa! Te voy a dar un código completo listo para poner en tu python.py. Este ejemplo está pensado para predecir la precipitación usando los últimos 3 meses de tus 5 variables, con red neuronal densa sencilla. Todo listo para entrenar y predecir.
+
+# python.py
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# -----------------------------
+# 1️⃣ Cargar datos históricos
+# -----------------------------
+# Tu CSV debe tener columnas: mes, lat, lon, temp, humedad, enso, precipitacion
+# Ejemplo:
+# mes,lat,lon,temp,humedad,enso,precipitacion
+# 2000-01,19.4,-99.1,22.5,70,0.2,55.1
+df = pd.read_csv('datos_historicos.csv')
+df = df.sort_values(by='mes').reset_index(drop=True)
+
+# -----------------------------
+# 2️⃣ Crear dataset con ventana de 3 meses
+# -----------------------------
+def crear_dataset(df, meses_atras=3):
+    X, y = [], []
+    for i in range(meses_atras, len(df)):
+        # Variables históricas de los últimos 3 meses
+        historial = df.iloc[i-meses_atras:i][['temp', 'humedad', 'enso', 'precipitacion']].values.flatten()
+        # Coordenadas del punto actual
+        coordenadas = df.iloc[i][['lat', 'lon']].values
+        X.append(np.concatenate([historial, coordenadas]))
+        y.append(df.iloc[i]['precipitacion'])
+    return np.array(X), np.array(y)
+
+X, y = crear_dataset(df)
+
+# -----------------------------
+# 3️⃣ Normalizar datos
+# -----------------------------
+scaler_X = MinMaxScaler()
+X_scaled = scaler_X.fit_transform(X)
+
+scaler_y = MinMaxScaler()
+y_scaled = scaler_y.fit_transform(y.reshape(-1, 1))
+
+# -----------------------------
+# 4️⃣ Crear modelo de red neuronal
+# -----------------------------
+model = Sequential([
+    Dense(32, input_dim=X_scaled.shape[1], activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1)  # Salida: precipitación
+])
+
+model.compile(optimizer='adam', loss='mse')
+
+# -----------------------------
+# 5️⃣ Entrenar modelo
+# -----------------------------
+model.fit(X_scaled, y_scaled, epochs=100, batch_size=16, validation_split=0.2)
+
+# -----------------------------
+# 6️⃣ Predecir precipitación para últimos 3 meses
+# -----------------------------
+# Aquí debes poner los valores de tus últimos 3 meses para temp, humedad, enso, precipitacion
+# Y las coordenadas del punto donde quieres predecir
+ultimos_3_meses = np.array([
+    # Mes -3
+    22.0, 65.0, 0.1, 50.0,
+    # Mes -2
+    22.5, 70.0, 0.2, 55.0,
+    # Mes -1
+    23.0, 68.0, 0.15, 60.0,
+    # Coordenadas
+    19.4, -99.1
+])
+
+ultimos_3_meses_scaled = scaler_X.transform(ultimos_3_meses.reshape(1, -1))
+prediccion_scaled = model.predict(ultimos_3_meses_scaled)
+prediccion = scaler_y.inverse_transform(prediccion_scaled)
+
+print(f"Precipitación pronosticada: {prediccion[0][0]:.2f} mm")
+✅ Notas importantes para que funcione
+Guarda tus datos en un CSV llamado datos_historicos.csv con las columnas exactas:
+mes,lat,lon,temp,humedad,enso,precipitacion.
+
+Los últimos 3 meses en ultimos_3_meses deben ingresarse en orden cronológico y luego las coordenadas del punto.
+
+Puedes ajustar número de capas, neuronas y epochs si quieres más precisión.
+
+Si tienes pocos datos, puede ser útil bajar el learning rate o agregar dropout para evitar sobreajuste.
+
+Si quieres, compa, puedo hacer una versión mejorada usando LSTM, que es más adecuada para series de tiempo y suele dar mejores predicciones para lluvia usando los 3 meses de historial.
+
+¿Quieres que haga esa versión LSTM?
+
+Tú dijiste:
+Traceback (most recent call last):
+  File "C:\xd\phyton.py", line 2, in <module>
+    import pandas as pd
+ModuleNotFoundError: No module named 'pandas'
+ChatGPT Plus
+¡Órale compa! Ese error es porque Python no encuentra la librería pandas en tu sistema. No es un problema del código, sino que no tienes instaladas las librerías que usamos (pandas, numpy, tensorflow, sklearn).
+
+Te explico paso a paso cómo solucionarlo:
+
+1️⃣ Instalar librerías necesarias
+Abre la terminal o CMD y ejecuta esto:
+
+pip install pandas numpy scikit-learn tensorflow
+pandas → para manejar tablas y CSV.
+
+numpy → para arreglos numéricos.
+
+scikit-learn → para normalizar los datos (MinMaxScaler).
+
+tensorflow → para la red neuronal.
+
+⚠️ Si tienes Python 3.11 o superior y pip no funciona, prueba:
+
+python -m pip install pandas numpy scikit-learn tensorflow
+2️⃣ Verificar instalación
+Después de instalar, corre:
+
+python -c "import pandas; import numpy; import tensorflow; import sklearn; print('Todo instalado!')"
+Si ves "Todo instalado!" ya estás listo.
+
+3️⃣ Ejecutar tu python.py de nuevo
+Ya no debería dar el error.
+
+💡 Tip extra:
+Si quieres, te puedo dar una versión del código lista para correr incluso si no tienes todas las librerías, usando solo numpy y tensorflow, sin pandas, para que evites problemas de instalación.
+
+¿Quieres que haga eso?
+
+Tú dijiste:
+2026-01-07 17:47:40.519096: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable TF_ENABLE_ONEDNN_OPTS=0.
+2026-01-07 17:47:49.114561: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable TF_ENABLE_ONEDNN_OPTS=0.
+Traceback (most recent call last):
+  File "C:\xd\phyton.py", line 38, in <module>
+    X_scaled = scaler_X.fit_transform(X)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\utils\_set_output.py", line 316, in wrapped
+    data_to_wrap = f(self, X, *args, **kwargs)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\base.py", line 894, in fit_transform
+    return self.fit(X, **fit_params).transform(X)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\preprocessing\_data.py", line 454, in fit
+    return self.partial_fit(X, y)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\preprocessing\_data.py", line 494, in partial_fit   
+    X = validate_data(
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\utils\validation.py", line 2954, in validate_data   
+    out = check_array(X, input_name="X", **check_params)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\utils\validation.py", line 1091, in check_array     
+    raise ValueError(msg)
+ValueError: Expected 2D array, got 1D array instead:
+array=[].
+Reshape your data either using array.reshape(-1, 1) if your data has a single feature or array.reshape(1, -1) if it contains a single sample.
+ChatGPT Plus
+¡Órale compa! Ese error significa que X está vacío cuando llega a scaler_X.fit_transform(X).
+Es un problema de cómo se están leyendo o creando los datos, no del escalador en sí.
+
+En concreto, este mensaje:
+
+ValueError: Expected 2D array, got 1D array instead: array=[]
+indica que X no tiene datos: tu función crear_dataset(df) no generó ninguna fila. Esto pasa normalmente por alguno de estos motivos:
+
+1️⃣ Tu CSV tiene muy pocos datos
+Recuerda que la función usa 3 meses de historial (meses_atras=3).
+
+Si tu CSV tiene menos de 4 filas (3 meses + 1 de predicción), no se creará ningún X ni y.
+
+Solución: asegúrate de tener suficientes filas en tu CSV. Por ejemplo, mínimo 10–12 meses de datos para probar.
+
+2️⃣ Columnas mal escritas
+La función busca exactamente estas columnas:
+
+['temp', 'humedad', 'enso', 'precipitacion', 'lat', 'lon']
+Si tu CSV tiene nombres diferentes o con mayúsculas, pandas no encontrará datos y X queda vacío.
+
+Solución: revisa que tu CSV tenga exactamente estas columnas.
+
+3️⃣ Filtro de fechas o índice mal
+La función ordena por mes.
+
+Si tu columna mes no es reconocida como ordenable, podría causar problemas.
+
+Solución rápida:
+
+df['mes'] = pd.to_datetime(df['mes'], errors='coerce')
+df = df.dropna(subset=['mes'])
+df = df.sort_values('mes').reset_index(drop=True)
+4️⃣ Cómo depurar
+Antes de escalar los datos, imprime:
+
+print("Filas de df:", len(df))
+X, y = crear_dataset(df)
+print("X.shape:", X.shape)
+print("y.shape:", y.shape)
+Si X.shape es (0,), entonces no se generaron ventanas.
+
+En ese caso revisa CSV y que tengas suficientes meses.
+
+💡 Tip extra:
+Si quieres probar rápido sin CSV, puedes crear un DataFrame de prueba así:
+
+import pandas as pd
+import numpy as np
+
+df = pd.DataFrame({
+    'mes': pd.date_range(start='2020-01-01', periods=12, freq='M'),
+    'lat': [19.4]*12,
+    'lon': [-99.1]*12,
+    'temp': np.random.uniform(20, 25, 12),
+    'humedad': np.random.uniform(60, 80, 12),
+    'enso': np.random.uniform(0, 0.3, 12),
+    'precipitacion': np.random.uniform(50, 100, 12)
+})
+Después vuelve a correr crear_dataset(df) y scaler_X.fit_transform(X); así sabrás si el problema es el CSV o el código.
+
+Si quieres, compa, puedo reescribir tu python.py completo con un dataset de prueba incorporado, para que lo corras y veas que funciona antes de meter tus datos reales.
+
+¿Quieres que haga eso?
+
+Tú dijiste:
+Imagen cargada
+2025-10	19.4	-99.1	20	70	1	20
+2025-11	15.4	-98.5	16	65	0.8	10
+2025-12	16.2	-97.3	19	30	0.5	0
+2025-10	19.4	-99.1	20	70	1	20
+2025-11	15.4	-98.5	16	65	0.8	10
+2025-12	16.2	-97.3	19	30	0.5	0
+2025-10	19.4	-99.1	20	70	1	20
+2025-11	15.4	-98.5	16	65	0.8	10
+2025-12	16.2	-97.3	19	30	0.5	0
+ChatGPT Plus
+¡Órale compa! Gracias por subir la imagen con los datos. 😎
+
+Por lo que veo en tu tabla:
+
+Tu CSV tiene duplicados de los mismos meses y coordenadas.
+
+Además, las columnas no tienen nombre en la imagen. Para que la red neuronal funcione, necesitamos encabezados exactos.
+
+Tus columnas deberían llamarse algo así:
+
+mes,lat,lon,temp,humedad,enso,precipitacion
+Y los datos deberían verse así en el CSV:
+
+mes,lat,lon,temp,humedad,enso,precipitacion
+2025-10,19.4,-99.1,20,70,1,20
+2025-11,15.4,-98.5,16,65,0.8,10
+2025-12,16.2,-97.3,19,30,0.5,0
+🔹 Problema con tu dataset actual
+Hay menos de 3 meses únicos por punto. La función crear_dataset(df) necesita al menos 3 meses consecutivos para generar la primera ventana de predicción.
+
+Tienes duplicados, que podrían confundir el modelo.
+
+Las fechas están separadas por - o tab, hay que unificarlas.
+
+🔹 Solución rápida
+Crea un CSV llamado datos_historicos.csv con encabezados:
+
+mes,lat,lon,temp,humedad,enso,precipitacion
+Asegúrate de tener al menos 4 meses consecutivos por punto para que el dataset genere las ventanas de 3 meses. Por ejemplo:
+
+2025-09,19.4,-99.1,21,68,0.9,15
+2025-10,19.4,-99.1,20,70,1,20
+2025-11,19.4,-99.1,19,65,0.8,10
+2025-12,19.4,-99.1,18,60,0.5,0
+Una vez tengas eso, el código que te di funcionará sin errores.
+
+💡 Tip extra:
+Si quieres, compa, puedo armarte una versión de python.py modificada que:
+
+Detecta duplicados automáticamente
+
+Ignora filas insuficientes para la ventana
+
+Funciona aunque tengas pocos meses
+
+Incluye un dataset de prueba incorporado para que corras la red y veas resultados inmediatamente
+
+¿Quieres que haga eso?
+
+Tú dijiste:
+cambia los meses ydame numeros aleatorios
+ChatGPT Plus
+¡Órale compa! 😎 Vamos a hacerte un dataset de prueba completo, con meses consecutivos y números aleatorios razonables para tus 5 variables y precipitación. Esto te permitirá correr el código directamente sin errores.
+
+Aquí te dejo un ejemplo que puedes pegar en tu python.py y correr:
+
+# python.py
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+
+# -----------------------------
+# 1️⃣ Crear dataset de prueba con meses y valores aleatorios
+# -----------------------------
+np.random.seed(42)  # Para reproducibilidad
+
+meses = pd.date_range(start='2020-01-01', periods=12, freq='M')
+latitudes = [19.4]*12
+longitudes = [-99.1]*12
+
+df = pd.DataFrame({
+    'mes': meses,
+    'lat': latitudes,
+    'lon': longitudes,
+    'temp': np.random.uniform(15, 25, size=12),        # Temperatura mensual
+    'humedad': np.random.uniform(30, 80, size=12),     # Humedad mensual
+    'enso': np.random.uniform(0, 1, size=12),          # Índice ENSO
+    'precipitacion': np.random.uniform(0, 100, size=12) # Precipitación histórica
+})
+
+print("Dataset de prueba:")
+print(df)
+
+# -----------------------------
+# 2️⃣ Crear dataset con ventana de 3 meses
+# -----------------------------
+def crear_dataset(df, meses_atras=3):
+    X, y = [], []
+    for i in range(meses_atras, len(df)):
+        historial = df.iloc[i-meses_atras:i][['temp','humedad','enso','precipitacion']].values.flatten()
+        coordenadas = df.iloc[i][['lat','lon']].values
+        X.append(np.concatenate([historial, coordenadas]))
+        y.append(df.iloc[i]['precipitacion'])
+    return np.array(X), np.array(y)
+
+X, y = crear_dataset(df)
+print("X.shape:", X.shape, "y.shape:", y.shape)
+
+# -----------------------------
+# 3️⃣ Normalizar datos
+# -----------------------------
+scaler_X = MinMaxScaler()
+X_scaled = scaler_X.fit_transform(X)
+
+scaler_y = MinMaxScaler()
+y_scaled = scaler_y.fit_transform(y.reshape(-1,1))
+
+# -----------------------------
+# 4️⃣ Crear modelo de red neuronal
+# -----------------------------
+model = Sequential([
+    Dense(32, input_dim=X_scaled.shape[1], activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1)
+])
+
+model.compile(optimizer='adam', loss='mse')
+
+# -----------------------------
+# 5️⃣ Entrenar modelo
+# -----------------------------
+model.fit(X_scaled, y_scaled, epochs=100, batch_size=4, validation_split=0.2)
+
+# -----------------------------
+# 6️⃣ Predecir precipitación para últimos 3 meses
+# -----------------------------
+ultimos_3_meses = np.array([
+    df['temp'].iloc[-3], df['humedad'].iloc[-3], df['enso'].iloc[-3], df['precipitacion'].iloc[-3],
+    df['temp'].iloc[-2], df['humedad'].iloc[-2], df['enso'].iloc[-2], df['precipitacion'].iloc[-2],
+    df['temp'].iloc[-1], df['humedad'].iloc[-1], df['enso'].iloc[-1], df['precipitacion'].iloc[-1],
+    df['lat'].iloc[-1], df['lon'].iloc[-1]
+])
+
+ultimos_3_meses_scaled = scaler_X.transform(ultimos_3_meses.reshape(1,-1))
+prediccion_scaled = model.predict(ultimos_3_meses_scaled)
+prediccion = scaler_y.inverse_transform(prediccion_scaled)
+
+print(f"\nPrecipitación pronosticada: {prediccion[0][0]:.2f} mm")
+✅ Qué hace este código
+Genera 12 meses consecutivos con valores aleatorios para las 5 variables y precipitación.
+
+Crea las ventanas de 3 meses automáticamente.
+
+Normaliza los datos y entrena una red neuronal sencilla.
+
+Predice la precipitación del mes siguiente usando los últimos 3 meses del dataset.
+
+Si quieres, compa, puedo hacer una versión aún más “profesional” usando LSTM en lugar de capa densa, que suele predecir mejor series de tiempo como precipitación mensual.
+
+¿Quieres que haga eso?
+
+PS C:\xd> python --version
+Python 3.10.11
+PS C:\xd> python phyton.py 
+Traceback (most recent call last):
+  File "C:\xd\phyton.py", line 2, in <module>
+    import pandas as pd
+ModuleNotFoundError: No module named 'pandas'
+PS C:\xd> python -m pip install pandas numpy scikit-learn tensorflow
+>>
+Collecting pandas
+  Downloading pandas-2.3.3-cp310-cp310-win_amd64.whl (11.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 7.6 MB/s eta 0:00:00      
+Collecting numpy
+  Downloading numpy-2.2.6-cp310-cp310-win_amd64.whl (12.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.9/12.9 MB 7.0 MB/s eta 0:00:00      
+Collecting scikit-learn
+  Downloading scikit_learn-1.7.2-cp310-cp310-win_amd64.whl (8.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.9/8.9 MB 7.5 MB/s eta 0:00:00        
+Collecting tensorflow
+  Downloading tensorflow-2.20.0-cp310-cp310-win_amd64.whl (331.7 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 331.7/331.7 MB 344.3 kB/s eta 0:00:00  
+Collecting python-dateutil>=2.8.2
+  Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 2.8 MB/s eta 0:00:00    
+Collecting tzdata>=2022.7
+  Downloading tzdata-2025.3-py2.py3-none-any.whl (348 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 348.5/348.5 kB 2.7 MB/s eta 0:00:00    
+Collecting pytz>=2020.1
+  Downloading pytz-2025.2-py2.py3-none-any.whl (509 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 509.2/509.2 kB 1.1 MB/s eta 0:00:00    
+Collecting threadpoolctl>=3.1.0
+  Downloading threadpoolctl-3.6.0-py3-none-any.whl (18 kB)
+Collecting scipy>=1.8.0
+  Downloading scipy-1.15.3-cp310-cp310-win_amd64.whl (41.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 41.3/41.3 MB 4.7 MB/s eta 0:00:00      
+Collecting joblib>=1.2.0
+  Downloading joblib-1.5.3-py3-none-any.whl (309 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 309.1/309.1 kB 6.4 MB/s eta 0:00:00    
+Collecting tensorboard~=2.20.0
+  Downloading tensorboard-2.20.0-py3-none-any.whl (5.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.5/5.5 MB 7.5 MB/s eta 0:00:00        
+Collecting google_pasta>=0.1.1
+  Downloading google_pasta-0.2.0-py3-none-any.whl (57 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 57.5/57.5 kB 3.0 MB/s eta 0:00:00      
+Collecting gast!=0.5.0,!=0.5.1,!=0.5.2,>=0.2.1
+  Downloading gast-0.7.0-py3-none-any.whl (22 kB)
+Collecting astunparse>=1.6.0
+  Downloading astunparse-1.6.3-py2.py3-none-any.whl (12 kB)
+Collecting keras>=3.10.0
+  Downloading keras-3.12.0-py3-none-any.whl (1.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.5/1.5 MB 8.5 MB/s eta 0:00:00        
+Requirement already satisfied: setuptools in c:\users\win10\appdata\local\programs\python\python310\lib\site-packages (from tensorflow) (65.5.0)
+Collecting h5py>=3.11.0
+  Downloading h5py-3.15.1-cp310-cp310-win_amd64.whl (2.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.9/2.9 MB 8.3 MB/s eta 0:00:00        
+Collecting requests<3,>=2.21.0
+  Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.7/64.7 kB 1.8 MB/s eta 0:00:00      
+Collecting libclang>=13.0.0
+  Downloading libclang-18.1.1-py2.py3-none-win_amd64.whl (26.4 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 26.4/26.4 MB 5.6 MB/s eta 0:00:00      
+Collecting ml_dtypes<1.0.0,>=0.5.1
+  Downloading ml_dtypes-0.5.4-cp310-cp310-win_amd64.whl (210 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 210.7/210.7 kB 4.3 MB/s eta 0:00:00    
+Collecting protobuf>=5.28.0
+  Downloading protobuf-6.33.2-cp310-abi3-win_amd64.whl (436 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 436.9/436.9 kB 6.8 MB/s eta 0:00:00    
+Collecting opt_einsum>=2.3.2
+  Downloading opt_einsum-3.4.0-py3-none-any.whl (71 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.9/71.9 kB 4.1 MB/s eta 0:00:00      
+Collecting termcolor>=1.1.0
+  Downloading termcolor-3.3.0-py3-none-any.whl (7.7 kB)
+Collecting grpcio<2.0,>=1.24.3
+  Downloading grpcio-1.76.0-cp310-cp310-win_amd64.whl (4.7 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 7.5 MB/s eta 0:00:00        
+Collecting packaging
+  Downloading packaging-25.0-py3-none-any.whl (66 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 66.5/66.5 kB 3.5 MB/s eta 0:00:00      
+Collecting typing_extensions>=3.6.6
+  Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 2.1 MB/s eta 0:00:00      
+Collecting six>=1.12.0
+  Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+Collecting wrapt>=1.11.0
+  Downloading wrapt-2.0.1-cp310-cp310-win_amd64.whl (60 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.4/60.4 kB 3.1 MB/s eta 0:00:00      
+Collecting absl-py>=1.0.0
+  Downloading absl_py-2.3.1-py3-none-any.whl (135 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.8/135.8 kB 7.8 MB/s eta 0:00:00    
+Collecting flatbuffers>=24.3.25
+  Downloading flatbuffers-25.12.19-py2.py3-none-any.whl (26 kB)
+Collecting wheel<1.0,>=0.23.0
+  Downloading wheel-0.45.1-py3-none-any.whl (72 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 72.5/72.5 kB 3.9 MB/s eta 0:00:00      
+Collecting rich
+  Downloading rich-14.2.0-py3-none-any.whl (243 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.4/243.4 kB 7.5 MB/s eta 0:00:00    
+Collecting namex
+  Downloading namex-0.1.0-py3-none-any.whl (5.9 kB)
+Collecting optree
+  Downloading optree-0.18.0-cp310-cp310-win_amd64.whl (302 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 302.7/302.7 kB 3.7 MB/s eta 0:00:00    
+Collecting idna<4,>=2.5
+  Downloading idna-3.11-py3-none-any.whl (71 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.0/71.0 kB 3.8 MB/s eta 0:00:00      
+Collecting urllib3<3,>=1.21.1
+  Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 3.9 MB/s eta 0:00:00    
+Collecting certifi>=2017.4.17
+  Downloading certifi-2026.1.4-py3-none-any.whl (152 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 152.9/152.9 kB 4.6 MB/s eta 0:00:00    
+Collecting charset_normalizer<4,>=2
+  Downloading charset_normalizer-3.4.4-cp310-cp310-win_amd64.whl (107 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 107.2/107.2 kB 3.1 MB/s eta 0:00:00    
+Requirement already satisfied: pillow in c:\users\win10\appdata\local\programs\python\python310\lib\site-packages (from tensorboard~=2.20.0->tensorflow) (9.5.0)
+Collecting tensorboard-data-server<0.8.0,>=0.7.0
+  Downloading tensorboard_data_server-0.7.2-py3-none-any.whl (2.4 kB)
+Collecting markdown>=2.6.8
+  Downloading markdown-3.10-py3-none-any.whl (107 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 107.7/107.7 kB 3.1 MB/s eta 0:00:00    
+Collecting werkzeug>=1.0.1
+  Downloading werkzeug-3.1.4-py3-none-any.whl (224 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 225.0/225.0 kB 6.7 MB/s eta 0:00:00    
+Collecting markupsafe>=2.1.1
+  Downloading markupsafe-3.0.3-cp310-cp310-win_amd64.whl (15 kB)
+Collecting markdown-it-py>=2.2.0
+  Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.3/87.3 kB 4.8 MB/s eta 0:00:00      
+Collecting pygments<3.0.0,>=2.13.0
+  Downloading pygments-2.19.2-py3-none-any.whl (1.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 8.6 MB/s eta 0:00:00        a 0:00:00
+Collecting mdurl~=0.1
+  Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)                rapt, wheel, urll
+rapt, wheel, urllib3, tzdata, typing_extensions, threadpoolctl, termd-data-server, sicolor, tensorboard-data-server, six, pygments, protobuf, packaging, fe, markdown, job
+opt_einsum, numpy, mdurl, markupsafe, markdown, joblib, idna, gast, py, requests, pyt
+charset_normalizer, certifi, absl-py, werkzeug, scipy, requests, pyte_pasta, astunparhon-dateutil, optree, ml_dtypes, markdown-it-py, h5py, grpcio, google_pasta, astunparse, tensorboard, scikit-learn, rich, pandas, keras, tensorflow
+Successfully installed absl-py-2.3.1 astunparse-1.6.3 certifi-2026.1.4 charset_normalizer-3.4.4 flatbuffers-25.12.19 gast-0.7.0 google_pasta-0.2.0 grpcio-1.76.0 h5py-3.15.1 idna-3.11 joblib-1.5.3 keras-3.12.0 libclang-18.1.1 markdown-3.10 markdown-it-py-4.0.0 markupsafe-33.4.0 optree-0.18.0 packaging-25.0 pandas-2.3.3 protobuf-6.33.2 pygments-2.19.2 python-dateutil-2.9.0.post0 pytz-2025.2 requests-2.32.5 
+rich-14.2.0 scikit-learn-1.7.2 scipy-1.15.3 six-1.17.0 tensorboard-2.20.0 tensorboard-data-server-0.7.2 tensorflow-2.20.0 termcolor-3.3.0 threadpoolctl-3.6.0 typing_extensions-4.15.0 tzdata-2025.3 urllib3-2.6.3 werkzeug-3.1.4 wheel-0.45.1 wrapt-2.0.1
+
+[notice] A new release of pip is available: 23.0.1 -> 25.3
+
+[notice] A new release of pip is available: 23.0.1 -> 25.3
+[notice] A new release of pip is available: 23.0.1 -> 25.3
+[notice] To update, run: python.exe -m pip install --upgrade pip    
+PS C:\xd> f
+f : El término 'f' no se reconoce como nombre de un cmdlet,
+función, archivo de script o programa ejecutable. Compruebe si      
+escribió correctamente el nombre o, si incluyó una ruta de acceso,  
+compruebe que dicha ruta es correcta e inténtelo de nuevo.
+En línea: 1 Carácter: 1
++ f
++ ~
+    + CategoryInfo          : ObjectNotFound: (f:String) [], Comma  
+   ndNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+f : El término 'f' no se reconoce como nombre de un cmdlet,
+función, archivo de script o programa ejecutable. Compruebe si      
+escribió correctamente el nombre o, si incluyó una ruta de acceso,  
+compruebe que dicha ruta es correcta e inténtelo de nuevo.
+En línea: 1 Carácter: 1
++ f
++ ~
+    + CategoryInfo          : ObjectNotFound: (f:String) [], Comma  
+   ndNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\xd> python phyton.py
+2026-01-07 17:43:49.880293: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different comp    + FullyQualifiedErrorId : CommandNotFoundException
+
+PS C:\xd> python phyton.py
+2026-01-07 17:43:49.880293: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different comp
+
+PS C:\xd> python phyton.py
+2026-01-07 17:43:49.880293: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different compl results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-07 17:44:33.915477: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Traceback (most recent call last):
+  File "C:\xd\phyton.py", line 15, in <module>
+    df = pd.read_csv('datos_historicos.csv')
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\io\parsers\readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\io\parsers\readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\io\parsers\readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\io\parsers\readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\pandas\io\common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'datos_historicos.csv'
+PS C:\xd>
+
+
+
+
+
+
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'datos_historicos.csv'
+PS C:\xd>
+
+
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'datos_historicos.csv'
+PS C:\xd>
+
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'datos_historicos.csv'
+    handle = open(
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'datos_historicos.csv'
+    handle = open(
+    handle = open(
+PS C:\xd> python phyton.py
+2026-01-07 17:47:40.519096: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-07 17:47:49.114561: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Traceback (most recent call last):
+  File "C:\xd\phyton.py", line 38, in <module>
+    X_scaled = scaler_X.fit_transform(X)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\utils\_set_output.py", line 316, in wrapped
+    data_to_wrap = f(self, X, *args, **kwargs)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\base.py", line 894, in fit_transform
+    return self.fit(X, **fit_params).transform(X)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\preprocessing\_data.py", line 454, in fit
+    return self.partial_fit(X, y)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\preprocessing\_data.py", line 494, in partial_fit
+    X = validate_data(
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\utils\validation.py", line 2954, in validate_data
+    out = check_array(X, input_name="X", **check_params)
+  File "C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\sklearn\utils\validation.py", line 1091, in check_array
+    raise ValueError(msg)
+ValueError: Expected 2D array, got 1D array instead:
+array=[].
+Reshape your data either using array.reshape(-1, 1) if your data has a single feature or array.reshape(1, -1) if it contains a single sample.
+PS C:\xd> ^C
+PS C:\xd> python phyton.py
+2026-01-07 17:57:03.776299: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-07 17:57:11.258192: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\keras\src\layers\core\dense.py:95: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the first layer in the model instead.
+  super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+2026-01-07 17:57:13.328435: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in 
+performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+Epoch 1/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 2s 2s/step - loss: 1.7529 - val_loss: 1.6017
+Epoch 2/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 218ms/step - loss: 1.6277 - val_loss: 1.5103
+Epoch 3/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 346ms/step - loss: 1.5176 - val_loss: 1.4226
+Epoch 4/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 1.4180 - val_loss: 1.3415
+Epoch 5/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 189ms/step - loss: 1.3242 - val_loss: 1.2644
+Epoch 6/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 239ms/step - loss: 1.2354 - val_loss: 1.1911
+Epoch 7/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 291ms/step - loss: 1.1547 - val_loss: 1.1292
+Epoch 8/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 194ms/step - loss: 1.0796 - val_loss: 1.0749
+Epoch 9/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 1.0080 - val_loss: 1.0227
+Epoch 10/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 207ms/step - loss: 0.9409 - val_loss: 0.9729
+Epoch 11/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 326ms/step - loss: 0.8785 - val_loss: 0.9258
+Epoch 12/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 338ms/step - loss: 0.8246 - val_loss: 0.8844
+Epoch 13/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 342ms/step - loss: 0.7736 - val_loss: 0.8436
+Epoch 14/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 187ms/step - loss: 0.7257 - val_loss: 0.8049
+Epoch 15/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 326ms/step - loss: 0.6815 - val_loss: 0.7683
+Epoch 16/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 175ms/step - loss: 0.6406 - val_loss: 0.7342
+Epoch 17/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 330ms/step - loss: 0.6038 - val_loss: 0.7054
+Epoch 18/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 188ms/step - loss: 0.5686 - val_loss: 0.6783
+Epoch 19/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 179ms/step - loss: 0.5343 - val_loss: 0.6526
+Epoch 20/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 320ms/step - loss: 0.5019 - val_loss: 0.6290
+Epoch 21/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 194ms/step - loss: 0.4713 - val_loss: 0.6037
+Epoch 22/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 196ms/step - loss: 0.4427 - val_loss: 0.5793
+Epoch 23/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 317ms/step - loss: 0.4159 - val_loss: 0.5560
+Epoch 24/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 188ms/step - loss: 0.3904 - val_loss: 0.5335
+Epoch 25/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 326ms/step - loss: 0.3663 - val_loss: 0.5118
+Epoch 26/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 203ms/step - loss: 0.3436 - val_loss: 0.4909
+Epoch 27/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 184ms/step - loss: 0.3213 - val_loss: 0.4709
+Epoch 28/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 335ms/step - loss: 0.3011 - val_loss: 0.4517
+Epoch 29/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 337ms/step - loss: 0.2824 - val_loss: 0.4332
+Epoch 30/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 197ms/step - loss: 0.2656 - val_loss: 0.4156
+Epoch 31/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 488ms/step - loss: 0.2501 - val_loss: 0.3987
+Epoch 32/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 198ms/step - loss: 0.2356 - val_loss: 0.3824
+Epoch 33/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 184ms/step - loss: 0.2222 - val_loss: 0.3669
+Epoch 34/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 330ms/step - loss: 0.2099 - val_loss: 0.3520
+Epoch 35/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 173ms/step - loss: 0.1996 - val_loss: 0.3378
+Epoch 36/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 188ms/step - loss: 0.1905 - val_loss: 0.3244
+Epoch 37/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 355ms/step - loss: 0.1821 - val_loss: 0.3115
+Epoch 38/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 315ms/step - loss: 0.1745 - val_loss: 0.2994
+Epoch 39/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 357ms/step - loss: 0.1676 - val_loss: 0.2879
+Epoch 40/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.1615 - val_loss: 0.2771
+Epoch 41/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.1559 - val_loss: 0.2669
+Epoch 42/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 190ms/step - loss: 0.1510 - val_loss: 0.2574
+Epoch 43/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 334ms/step - loss: 0.1466 - val_loss: 0.2484
+Epoch 44/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 195ms/step - loss: 0.1426 - val_loss: 0.2400
+Epoch 45/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 320ms/step - loss: 0.1391 - val_loss: 0.2322
+Epoch 46/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 192ms/step - loss: 0.1360 - val_loss: 0.2249
+Epoch 47/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 307ms/step - loss: 0.1332 - val_loss: 0.2181
+Epoch 48/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 198ms/step - loss: 0.1309 - val_loss: 0.2117
+Epoch 49/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 346ms/step - loss: 0.1290 - val_loss: 0.2055
+Epoch 50/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 192ms/step - loss: 0.1274 - val_loss: 0.1995
+Epoch 51/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 358ms/step - loss: 0.1260 - val_loss: 0.1938
+Epoch 52/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 196ms/step - loss: 0.1247 - val_loss: 0.1885
+Epoch 53/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 182ms/step - loss: 0.1235 - val_loss: 0.1834
+Epoch 54/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.1225 - val_loss: 0.1787
+Epoch 55/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 355ms/step - loss: 0.1214 - val_loss: 0.1743
+Epoch 56/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 316ms/step - loss: 0.1203 - val_loss: 0.1701
+Epoch 57/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 191ms/step - loss: 0.1191 - val_loss: 0.1663
+Epoch 58/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 189ms/step - loss: 0.1180 - val_loss: 0.1628
+Epoch 59/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 195ms/step - loss: 0.1167 - val_loss: 0.1595
+Epoch 60/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 364ms/step - loss: 0.1154 - val_loss: 0.1566
+Epoch 61/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 337ms/step - loss: 0.1142 - val_loss: 0.1541
+Epoch 62/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 388ms/step - loss: 0.1129 - val_loss: 0.1519
+Epoch 63/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 312ms/step - loss: 0.1115 - val_loss: 0.1500
+Epoch 64/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 315ms/step - loss: 0.1101 - val_loss: 0.1482
+Epoch 65/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 174ms/step - loss: 0.1088 - val_loss: 0.1467
+Epoch 66/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 347ms/step - loss: 0.1074 - val_loss: 0.1450
+Epoch 67/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 187ms/step - loss: 0.1060 - val_loss: 0.1434
+Epoch 68/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 178ms/step - loss: 0.1046 - val_loss: 0.1417
+Epoch 69/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 342ms/step - loss: 0.1032 - val_loss: 0.1400
+Epoch 70/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 333ms/step - loss: 0.1018 - val_loss: 0.1382
+Epoch 71/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 373ms/step - loss: 0.1003 - val_loss: 0.1365
+Epoch 72/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 217ms/step - loss: 0.0989 - val_loss: 0.1348
+Epoch 73/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 386ms/step - loss: 0.0975 - val_loss: 0.1334
+Epoch 74/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 294ms/step - loss: 0.0961 - val_loss: 0.1321
+Epoch 75/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 191ms/step - loss: 0.0947 - val_loss: 0.1311
+Epoch 76/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 325ms/step - loss: 0.0934 - val_loss: 0.1301
+Epoch 77/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0921 - val_loss: 0.1290
+Epoch 78/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 318ms/step - loss: 0.0910 - val_loss: 0.1280
+Epoch 79/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 349ms/step - loss: 0.0899 - val_loss: 0.1270
+Epoch 80/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 187ms/step - loss: 0.0889 - val_loss: 0.1260
+Epoch 81/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 198ms/step - loss: 0.0879 - val_loss: 0.1250
+Epoch 82/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 351ms/step - loss: 0.0870 - val_loss: 0.1239
+Epoch 83/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0860 - val_loss: 0.1228
+Epoch 84/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 178ms/step - loss: 0.0850 - val_loss: 0.1216
+Epoch 85/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 333ms/step - loss: 0.0841 - val_loss: 0.1204
+Epoch 86/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 187ms/step - loss: 0.0832 - val_loss: 0.1192
+Epoch 87/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0823 - val_loss: 0.1183
+Epoch 88/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 329ms/step - loss: 0.0814 - val_loss: 0.1174
+Epoch 89/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 216ms/step - loss: 0.0806 - val_loss: 0.1165
+Epoch 90/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 294ms/step - loss: 0.0797 - val_loss: 0.1156
+Epoch 91/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 184ms/step - loss: 0.0788 - val_loss: 0.1145
+Epoch 92/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 329ms/step - loss: 0.0780 - val_loss: 0.1133
+Epoch 93/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0771 - val_loss: 0.1119
+Epoch 94/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0763 - val_loss: 0.1103
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 216ms/step - loss: 0.0806 - val_loss: 0.1165
+Epoch 90/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 294ms/step - loss: 0.0797 - val_loss: 0.1156
+Epoch 91/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 184ms/step - loss: 0.0788 - val_loss: 0.1145
+Epoch 92/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 329ms/step - loss: 0.0780 - val_loss: 0.1133
+Epoch 93/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0771 - val_loss: 0.1119
+Epoch 94/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0763 - val_loss: 0.1103
+Epoch 91/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 184ms/step - loss: 0.0788 - val_loss: 0.1145
+Epoch 92/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 329ms/step - loss: 0.0780 - val_loss: 0.1133
+Epoch 93/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0771 - val_loss: 0.1119
+Epoch 94/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0763 - val_loss: 0.1103
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 329ms/step - loss: 0.0780 - val_loss: 0.1133
+Epoch 93/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0771 - val_loss: 0.1119
+Epoch 94/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0763 - val_loss: 0.1103
+Epoch 93/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0771 - val_loss: 0.1119
+Epoch 94/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0763 - val_loss: 0.1103
+Epoch 95/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0754 - val_loss: 0.1087
+Epoch 96/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0746 - val_loss: 0.1072
+Epoch 97/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 344ms/step - loss: 0.0738 - val_loss: 0.1060
+Epoch 98/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 346ms/step - loss: 0.0731 - val_loss: 0.1049
+Epoch 99/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 185ms/step - loss: 0.0771 - val_loss: 0.1119
+Epoch 94/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 186ms/step - loss: 0.0763 - val_loss: 0.1103
+Epoch 95/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0754 - val_loss: 0.1087
+Epoch 96/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0746 - val_loss: 0.1072
+Epoch 97/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 344ms/step - loss: 0.0738 - val_loss: 0.1060
+Epoch 98/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 346ms/step - loss: 0.0731 - val_loss: 0.1049
+Epoch 99/100
+Epoch 95/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0754 - val_loss: 0.1087
+Epoch 96/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0746 - val_loss: 0.1072
+Epoch 97/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 344ms/step - loss: 0.0738 - val_loss: 0.1060
+Epoch 98/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 346ms/step - loss: 0.0731 - val_loss: 0.1049
+Epoch 99/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 338ms/step - loss: 0.0724 - val_loss: 0.1041
+Epoch 100/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 335ms/step - loss: 0.0717 - val_loss: 0.1031
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 140ms/step
+Epoch 96/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 193ms/step - loss: 0.0746 - val_loss: 0.1072
+Epoch 97/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 344ms/step - loss: 0.0738 - val_loss: 0.1060
+Epoch 98/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 346ms/step - loss: 0.0731 - val_loss: 0.1049
+Epoch 99/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 338ms/step - loss: 0.0724 - val_loss: 0.1041
+Epoch 100/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 335ms/step - loss: 0.0717 - val_loss: 0.1031
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 140ms/step
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 338ms/step - loss: 0.0724 - val_loss: 0.1041
+Epoch 100/100
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 335ms/step - loss: 0.0717 - val_loss: 0.1031
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 140ms/step
+Precipitación pronosticada: 12.25 mm
+  Downloading flask-3.1.2-py3-none-any.whl (103 kB)
+Collecting itsdangerous>=2.2.0
+  Downloading itsdangerous-2.2.0-py3-none-any.whl (16 kB)
+Requirement already satisfied: werkzeug>=3.1.0 in c:\users\win10\appdata\local\programs\python\python310\lib\site-packages (from 
+flask) (3.1.4)
+Collecting click>=8.1.3
+  Downloading click-8.3.1-py3-none-any.whl (108 kB)                                                                              flask) (3.1.4)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 108.3/108.3 kB 3.1 MB/s eta 0:00:00
+Collecting jinja2>=3.1.2
+  Downloading jinja2-3.1.6-py3-none-any.whl (134 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 2.0 MB/s eta 0:00:00
+Requirement already satisfied: markupsafe>=2.1.1 in c:\users\win10\appdata\local\programs\python\python310\lib\site-packages (from flask) (3.0.3)
+Collecting blinker>=1.9.0                                                                                                        m flask) (3.0.3)
+  Downloading blinker-1.9.0-py3-none-any.whl (8.5 kB)
+Collecting colorama
+  Downloading colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Installing collected packages: jinja2, itsdangerous, colorama, blinker, click, flask
+Successfully installed blinker-1.9.0 click-8.3.1 colorama-0.4.6 flask-3.1.2 itsdangerous-2.2.0 jinja2-3.1.6
+
+[notice] A new release of pip is available: 23.0.1 -> 25.3
+[notice] To update, run: python.exe -m pip install --upgrade pip
+PS C:\xd> python app.py^C
+PS C:\xd> python app.py
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 176-955-434
+127.0.0.1 - - [07/Jan/2026 18:19:58] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:19:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [07/Jan/2026 18:20:02] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+PS C:\xd> python app.py^C
+PS C:\xd> python app.py
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 176-955-434
+127.0.0.1 - - [07/Jan/2026 18:19:58] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:19:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [07/Jan/2026 18:20:02] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 176-955-434
+127.0.0.1 - - [07/Jan/2026 18:19:58] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:19:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [07/Jan/2026 18:20:02] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+ * Debugger PIN: 176-955-434
+127.0.0.1 - - [07/Jan/2026 18:19:58] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:19:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [07/Jan/2026 18:20:02] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+127.0.0.1 - - [07/Jan/2026 18:19:58] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:19:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [07/Jan/2026 18:20:02] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+127.0.0.1 - - [07/Jan/2026 18:19:59] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [07/Jan/2026 18:20:02] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 176-955-434
+127.0.0.1 - - [07/Jan/2026 18:20:32] "GET /ejecutar-python HTTP/1.1" 200 -
+ * Detected change in 'C:\\xd\\archivo.py', reloading
+ * Restarting with stat
+2026-01-07 18:24:56.751499: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment 
+variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-07 18:25:05.142520: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment 
+variable `TF_ENABLE_ONEDNN_OPTS=0`.
+ * Debugger is active!
+ * Debugger PIN: 176-955-434
+C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\keras\src\layers\core\dense.py:95: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the 
+first layer in the model instead.
+  super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+2026-01-07 18:25:07.890448: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 113ms/step
+127.0.0.1 - - [07/Jan/2026 18:25:14] "GET /ejecutar-python HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:28:07] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [07/Jan/2026 18:28:07] "GET /favicon.ico HTTP/1.1" 404 -
+PS C:\xd> python app.py
+  File "C:\xd\app.py", line 19
+    app.run(debug=True, host='0.0.0.0', port=5000)
+    ^
+IndentationError: expected an indented block after 'if' statement on line 17
+PS C:\xd> python app.py
+2026-01-07 18:49:25.917249: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment 
+variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-07 18:49:36.259447: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment 
+variable `TF_ENABLE_ONEDNN_OPTS=0`.
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.69.12:5000
+Press CTRL+C to quit
+ * Restarting with stat
+2026-01-07 18:49:42.127949: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment 
+variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-01-07 18:49:48.166491: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment 
+variable `TF_ENABLE_ONEDNN_OPTS=0`.
+ * Debugger is active!
+ * Debugger PIN: 176-955-434
+192.168.69.12 - - [07/Jan/2026 18:49:52] "GET / HTTP/1.1" 200 -
+192.168.69.12 - - [07/Jan/2026 18:49:56] "GET /favicon.ico HTTP/1.1" 404 -
+C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\keras\src\layers\core\dense.py:95: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the 
+first layer in the model instead.
+  super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+2026-01-07 18:49:59.687445: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 153ms/step
+192.168.69.12 - - [07/Jan/2026 18:50:09] "GET /ejecutar-python HTTP/1.1" 200 -
+C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\keras\src\layers\core\dense.py:95: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the 
+first layer in the model instead.
+  super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 112ms/step
+192.168.69.12 - - [07/Jan/2026 18:56:11] "GET /ejecutar-python HTTP/1.1" 200 -
+192.168.69.12 - - [07/Jan/2026 20:13:36] "GET / HTTP/1.1" 200 -
+192.168.69.12 - - [07/Jan/2026 20:13:43] "GET / HTTP/1.1" 400 -
+192.168.69.12 - - [07/Jan/2026 20:13:43] "GET /loginMsg.js HTTP/1.1" 404 -
+192.168.69.12 - - [07/Jan/2026 20:13:43] "GET /cgi/get.cgi?cmd=home_login HTTP/1.1" 404 -
+192.168.69.12 - - [08/Jan/2026 00:29:48] "GET / HTTP/1.1" 200 -
+192.168.69.12 - - [08/Jan/2026 00:29:48] "GET /favicon.ico HTTP/1.1" 404 -
+C:\Users\Win10\AppData\Local\Programs\Python\Python310\lib\site-packages\keras\src\layers\core\dense.py:95: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the 
+first layer in the model instead.
+  super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 136ms/step
+192.168.69.12 - - [08/Jan/2026 00:29:59] "GET /ejecutar-python HTTP/1.1" 200 -
+
+
+
+EXPLICAME QUE SIGNIFICA ESTO: model = Sequential([ 
+    Dense(32, input_dim=X.shape[1], activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1)  # salida de precipitación
+
+Claro compa, vamos línea por línea y en lenguaje claro, sin humo técnico 😄
+Esa parte es el corazón de tu red neuronal.
+
+📌 Código
+model = Sequential([ 
+    Dense(32, input_dim=X.shape[1], activation='relu'),
+    Dense(16, activation='relu'),
+    Dense(1)  # salida de precipitación
+])
+
+🧠 ¿Qué es Sequential?
+model = Sequential([...])
+
+
+Significa que tu red neuronal es lineal, capa por capa, como una cadena:
+
+➡️ Entradas → Capa 1 → Capa 2 → Salida
+
+No hay bifurcaciones ni cosas raras. Es la forma más simple y común de una red neuronal.
+
+🔹 Primera capa
+Dense(32, input_dim=X.shape[1], activation='relu')
+
+🔸 Dense
+
+Es una capa totalmente conectada:
+
+Cada neurona recibe información de todas las entradas.
+
+🔸 32
+
+Significa:
+
+Esta capa tiene 32 neuronas
+
+Cada neurona aprende un patrón distinto en tus datos:
+
+combinaciones de temperatura
+
+humedad
+
+ENSO
+
+precipitación pasada
+
+coordenadas
+
+Más neuronas = más capacidad para aprender relaciones complejas.
+
+🔸 input_dim=X.shape[1]
+
+Esto indica:
+
+¿Cuántos números entran al modelo?
+
+En tu caso:
+
+3 meses × 4 variables = 12
+
+lat + lon = 2
+👉 Total: 14 entradas
+
+Entonces:
+
+X.shape[1] = 14
+
+
+Cada fila de X es un vector de 14 valores.
+
+🔸 activation='relu'
+
+ReLU (Rectified Linear Unit) significa:
+
+𝑓
+(
+𝑥
+)
+=
+max
+⁡
+(
+0
+,
+𝑥
+)
+f(x)=max(0,x)
+
+¿Por qué se usa?
+
+Evita que la red se “aplane”
+
+Hace que el aprendizaje sea más rápido
+
+Es ideal para regresión climática
+
+👉 En palabras simples:
+
+La neurona solo “se activa” si encuentra algo importante
+
+🔹 Segunda capa
+Dense(16, activation='relu')
+
+
+16 neuronas (menos que la anterior)
+
+Sirve para:
+
+refinar lo aprendido
+
+combinar patrones más complejos
+
+📉 Es normal ir reduciendo neuronas:
+32 → 16 → salida
+
+Esto ayuda a no sobreajustar.
+
+🔹 Capa de salida
+Dense(1)
+
+
+Esta es la más importante.
+
+1 neurona → un solo número de salida
+
+Ese número es:
+
+🌧️ la precipitación pronosticada
+
+No lleva función de activación porque:
+
+La precipitación es un valor continuo
+
+Queremos que el modelo pueda predecir cualquier valor real
+
+🧠 Resumen mental (muy importante)
+14 datos de entrada
+        ↓
+32 neuronas → detectan patrones grandes
+        ↓
+16 neuronas → refinan patrones
+        ↓
+1 neurona → mm de lluvia pronosticados
+
+🔥 Analogía agrícola (para que quede clarísimo)
+
+Imagina esto como técnicos agrícolas:
+
+Capa 1 (32)
+→ muchos técnicos revisando clima, ENSO, humedad, historial
+
+Capa 2 (16)
+→ técnicos expertos discutiendo conclusiones
+
+Salida (1)
+→ el jefe da el pronóstico final de lluvia
+
+🚀 ¿Cómo sabes si necesitas más o menos capas?
+
+Pocos datos → red pequeña (como esta)
+
+Muchos años de datos → puedes subir a:
+
+Dense(64)
+Dense(32)
+Dense(16)
+
+
+Si quieres, compa, el siguiente paso natural es que te explique:
+👉 cómo la red “aprende” con loss='mse' y optimizer='adam'
+👉 o pasarnos a LSTM, que es más poderosa para clima
+
+Tú dices 💪🌽🌧️
